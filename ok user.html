@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Panda Coin Panel</title>
+    
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #00E676; /* Bright Panda Green */
+            --bg: #0f0f0f;
+            --card: #1a1a1a;
+            --text: #ffffff;
+            --subtext: #a0a0a0;
+            --danger: #ff5252;
+            --accent: #2d2d2d;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            padding-bottom: 80px; /* Space for nav */
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* --- Components --- */
+        .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid #333;
+        }
+        .user-pill {
+            background: #333;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .balance-hero { text-align: center; padding: 30px 0; }
+        .balance-hero h1 { font-size: 2.8rem; font-weight: 700; color: var(--primary); margin: 5px 0; }
+        .balance-hero small { color: var(--subtext); text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .stat-box { background: var(--accent); padding: 12px; border-radius: 12px; text-align: center; }
+        .stat-box .val { font-size: 1.1rem; font-weight: bold; margin-bottom: 2px; }
+        .stat-box .lbl { font-size: 0.7rem; color: var(--subtext); }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: var(--primary);
+            color: #000;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+        .btn-disabled { background: #333; color: #666; cursor: not-allowed; }
+
+        .list-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #333;
+        }
+        .list-row:last-child { border-bottom: none; }
+
+        /* --- Bottom Nav --- */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--card);
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            border-top: 1px solid #333;
+            z-index: 200;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #666;
+            font-size: 0.7rem;
+            cursor: pointer;
+            flex: 1;
+        }
+        .nav-item i { font-size: 1.3rem; margin-bottom: 4px; transition: 0.2s; }
+        .nav-item.active { color: var(--primary); }
+        .nav-item.active i { transform: translateY(-2px); }
+
+        /* --- Utilities --- */
+        .hidden { display: none !important; }
+        .text-green { color: var(--primary); }
+        .text-red { color: var(--danger); }
+        .loader { border: 3px solid #333; border-top: 3px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- Notification/Toast --- */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 12px;
+            position: fixed;
+            z-index: 300;
+            left: 50%;
+            top: 20px;
+            transform: translateX(-50%);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            font-size: 0.9rem;
+        }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {top: -50px; opacity: 0;} to {top: 20px; opacity: 1;} }
+        @keyframes fadeout { from {top: 20px; opacity: 1;} to {top: -50px; opacity: 0;} }
+    </style>
+</head>
+<body>
+
+    <div id="loader-screen" style="height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg);">
+        <i class="fas fa-paw fa-3x text-green" style="margin-bottom: 20px;"></i>
+        <div class="loader"></div>
+        <p style="margin-top: 10px; color: #666;">Authenticating with Telegram...</p>
+    </div>
+
+    <div id="app" class="hidden">
+        
+        <header class="header">
+            <div class="user-pill">
+                <i class="fas fa-user-circle"></i>
+                <span id="header-username">Guest</span>
+            </div>
+            <div class="user-pill" style="background: rgba(0,230,118,0.1); color: var(--primary);">
+                <i class="fas fa-wallet"></i>
+                <span id="header-balance">$0.00</span>
+            </div>
+        </header>
+
+        <section id="view-home" class="view container">
+            <div class="card balance-hero">
+                <small>Total Balance</small>
+                <h1>$<span id="dash-balance">0.00</span></h1>
+                <div class="grid-2" style="margin-top: 20px; padding: 0 20px;">
+                    <div class="stat-box">
+                        <div class="val text-green">$<span id="dash-pending">0.00</span></div>
+                        <div class="lbl">Pending</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="val">$<span id="dash-withdrawn">0.00</span></div>
+                        <div class="lbl">Withdrawn</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fas fa-bell text-green"></i> Updates</h3>
+                <div id="notif-list" style="margin-top: 10px; font-size: 0.85rem; color: #ccc; max-height: 150px; overflow-y: auto;">
+                    <div style="padding: 10px; text-align: center; color: #666;">No new notifications</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-earn" class="view container hidden">
+            <h2 style="margin-bottom: 15px;">Daily Tasks</h2>
+            <div class="card">
+                <div class="list-row">
+                    <div>
+                        <div style="font-weight: bold;">Daily Check-in</div>
+                        <div style="font-size: 0.8rem; color: var(--primary);">+ $0.50</div>
+                    </div>
+                    <button class="btn" style="width: auto; padding: 8px 16px;" onclick="doTask('daily_checkin', 0.50)">Claim</button>
+                </div>
+                <div class="list-row">
+                    <div>
+                        <div style="font-weight: bold;">Join Channel</div>
+                        <div style="font-size: 0.8rem; color: var(--primary);">+ $1.00</div>
+                    </div>
+                    <button class="btn btn-outline" style="width: auto; padding: 8px 16px;" onclick="doTask('join_channel', 1.00)">Go</button>
+                </div>
+            </div>
+
+            <h2 style="margin-bottom: 15px;">Mini Quiz</h2>
+            <div class="card">
+                <p style="margin-bottom: 15px;">What is Panda's favorite food?</p>
+                <div class="grid-2">
+                    <button class="btn btn-outline" onclick="showToast('Wrong answer!')">Pizza</button>
+                    <button class="btn btn-outline" onclick="doTask('quiz_1', 0.20)">Bamboo</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-wallet" class="view container hidden">
+            <div id="status-locked" class="card" style="border: 1px solid var(--danger);">
+                <h3 class="text-red"><i class="fas fa-lock"></i> Withdrawals Locked</h3>
+                <p style="font-size: 0.9rem; color: #ccc; margin: 10px 0;">
+                    You must deposit at least <strong>$5.00</strong> to verify your account and unlock withdrawals.
+                </p>
+                <button class="btn" onclick="openDepositModal()">Unlock Now (Deposit)</button>
+            </div>
+
+            <div id="status-unlocked" class="card hidden" style="border: 1px solid var(--primary);">
+                <h3 class="text-green"><i class="fas fa-check-circle"></i> Account Verified</h3>
+                <p style="font-size: 0.9rem; color: #ccc;">Withdrawals are unlocked.</p>
+            </div>
+
+            <div class="card">
+                <h3>Withdraw Funds</h3>
+                <div style="margin: 15px 0;">
+                    <label style="font-size: 0.8rem; color: #aaa;">Method</label>
+                    <select id="wd-method" style="width: 100%; padding: 12px; margin-top: 5px; background: #333; color: white; border: 1px solid #444; border-radius: 8px;">
+                        <option value="PayPal">PayPal (@parvezmiah09)</option>
+                        <option value="Bybit">Bybit (244393061)</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 0.8rem; color: #aaa;">Your Wallet/Email</label>
+                    <input type="text" id="wd-address" placeholder="e.g., user@email.com" style="width: 100%; padding: 12px; margin-top: 5px; background: #333; color: white; border: 1px solid #444; border-radius: 8px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 0.8rem; color: #aaa;">Amount ($)</label>
+                    <input type="number" id="wd-amount" placeholder="Min $10" style="width: 100%; padding: 12px; margin-top: 5px; background: #333; color: white; border: 1px solid #444; border-radius: 8px;">
+                </div>
+                <button class="btn" onclick="requestWithdrawal()">Submit Request</button>
+            </div>
+
+            <div class="card">
+                <h3>Transfer to User</h3>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <input type="number" id="tf-id" placeholder="User ID" style="flex:1; padding: 10px; background: #333; border: 1px solid #444; color: white; border-radius: 8px;">
+                    <input type="number" id="tf-amount" placeholder="$$" style="width: 80px; padding: 10px; background: #333; border: 1px solid #444; color: white; border-radius: 8px;">
+                </div>
+                <button class="btn btn-outline" style="margin-top: 10px;" onclick="transferFunds()">Send</button>
+                <small style="display: block; margin-top: 5px; color: #666;">*Requires verified account</small>
+            </div>
+        </section>
+
+        <section id="view-friends" class="view container hidden">
+            <div class="card" style="text-align: center;">
+                <h3>Invite Friends</h3>
+                <p style="color: #ccc; font-size: 0.9rem; margin-bottom: 15px;">Earn 10% of your friends' earnings!</p>
+                
+                <div style="background: #333; padding: 10px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+                    <span id="ref-link" style="font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;">...</span>
+                    <i class="fas fa-copy text-green" style="cursor: pointer;" onclick="copyRef()"></i>
+                </div>
+
+                <div class="grid-2" style="margin-top: 20px;">
+                    <div class="stat-box">
+                        <div class="val" id="ref-count">0</div>
+                        <div class="lbl">Friends</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="val text-green">$<span id="ref-earn">0.00</span></div>
+                        <div class="lbl">Earned</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin: 20px 0 10px 0;">Leaderboard</h3>
+            <div class="card" id="leaderboard-list">
+                <div class="list-row"><span>Loading...</span></div>
+            </div>
+        </section>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="nav('home')">
+                <i class="fas fa-home"></i> <span>Home</span>
+            </div>
+            <div class="nav-item" onclick="nav('earn')">
+                <i class="fas fa-coins"></i> <span>Earn</span>
+            </div>
+            <div class="nav-item" onclick="nav('wallet')">
+                <i class="fas fa-wallet"></i> <span>Wallet</span>
+            </div>
+            <div class="nav-item" onclick="nav('friends')">
+                <i class="fas fa-users"></i> <span>Friends</span>
+            </div>
+        </nav>
+    </div>
+
+    <div id="toast">Notification</div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        // --- 1. CONFIGURATION ---
+        // TODO: PASTE YOUR FIREBASE CONFIG HERE
+        const firebaseConfig = {
+  apiKey: "AIzaSyAjJ4QyeFohzjuST48m8ANfvBkRP_GDJis",
+  authDomain: "panda-coin-8d402.firebaseapp.com",
+  projectId: "panda-coin-8d402",
+  storageBucket: "panda-coin-8d402.firebasestorage.app",
+  messagingSenderId: "19621584838",
+  appId: "1:19621584838:web:b9c5511333b522fd095cc7",
+  measurementId: "G-WDDMWR350L"
+};
+
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+        } catch (e) {
+            console.error("Firebase Init Error: Check config", e);
+        }
+        const db = firebase.firestore();
+
+        // --- 2. TELEGRAM AUTO-LINKING ---
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Expand to full height
+
+        // Global User State
+        let currentUser = null;
+        let userData = {};
+
+        // Start Application
+        window.onload = async function() {
+            // Delay slightly for visuals
+            setTimeout(() => {
+                identifyUser();
+            }, 500);
+        };
+
+        async function identifyUser() {
+            let telegramId, username;
+
+            // 1. Try Telegram Web App Data
+            if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                telegramId = tg.initDataUnsafe.user.id.toString();
+                username = tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name;
+            } 
+            // 2. Fallback: URL Params (for testing in browser: index.html?uid=123&user=Test)
+            else {
+                const urlParams = new URLSearchParams(window.location.search);
+                telegramId = urlParams.get('uid');
+                username = urlParams.get('user') || 'Guest';
+            }
+
+            // 3. Dev Mode fallback (If opened directly without params)
+            if (!telegramId) {
+                // Generates a random ID for testing if no Telegram ID found
+                telegramId = localStorage.getItem('panda_test_id') || Math.floor(Math.random() * 1000000).toString();
+                username = "TestUser";
+                localStorage.setItem('panda_test_id', telegramId);
+                console.log("Dev Mode: Using Test ID " + telegramId);
+            }
+
+            // Authenticate with Firebase
+            await authUser(telegramId, username);
+        }
+
+        async function authUser(id, name) {
+            currentUser = id;
+            const userRef = db.collection('users').doc(id);
+            
+            try {
+                const doc = await userRef.get();
+                
+                if (!doc.exists) {
+                    // Create New User
+                    await userRef.set({
+                        id: id,
+                        username: name,
+                        balance: 0.00,
+                        pendingBalance: 0.00,
+                        withdrawn: 0.00,
+                        referrals: 0,
+                        referralEarnings: 0.00,
+                        depositUnlocked: false,
+                        joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } else {
+                    // Update Login
+                    await userRef.update({ 
+                        username: name, // Sync latest username
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp() 
+                    });
+                }
+
+                // Initialize App UI
+                document.getElementById('loader-screen').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                document.getElementById('header-username').innerText = name;
+                document.getElementById('ref-link').innerText = `https://t.me/GetPandacoin_bot?start=${id}`;
+
+                // Setup Listeners
+                listenToUser(id);
+                listenToLeaderboard();
+                listenToNotifications(id);
+
+            } catch (error) {
+                alert("Connection Error: " + error.message);
+            }
+        }
+
+        // --- 3. REALTIME LISTENERS ---
+
+        function listenToUser(id) {
+            db.collection('users').doc(id).onSnapshot((doc) => {
+                if(doc.exists) {
+                    userData = doc.data();
+                    
+                    // Update Balances
+                    updateText('dash-balance', userData.balance.toFixed(2));
+                    updateText('header-balance', `$${userData.balance.toFixed(2)}`);
+                    updateText('dash-pending', userData.pendingBalance.toFixed(2));
+                    updateText('dash-withdrawn', userData.withdrawn.toFixed(2));
+                    updateText('ref-count', userData.referrals);
+                    updateText('ref-earn', userData.referralEarnings.toFixed(2));
+
+                    // Update Unlock Status
+                    if(userData.depositUnlocked) {
+                        document.getElementById('status-locked').classList.add('hidden');
+                        document.getElementById('status-unlocked').classList.remove('hidden');
+                    } else {
+                        document.getElementById('status-locked').classList.remove('hidden');
+                        document.getElementById('status-unlocked').classList.add('hidden');
+                    }
+                }
+            });
+        }
+
+        function listenToLeaderboard() {
+            db.collection('users').orderBy('referrals', 'desc').limit(5)
+            .onSnapshot(snapshot => {
+                let html = '';
+                let rank = 1;
+                snapshot.forEach(doc => {
+                    const u = doc.data();
+                    html += `
+                    <div class="list-row">
+                        <span>#${rank++} ${u.username}</span>
+                        <span class="text-green">${u.referrals} Refs</span>
+                    </div>`;
+                });
+                document.getElementById('leaderboard-list').innerHTML = html;
+            });
+        }
+
+        function listenToNotifications(id) {
+            // In a real app, query a subcollection or filter deeply
+            // Here we simplify by querying a global notifications collection filtered by ID
+            db.collection('notifications').where('userId', '==', id)
+            .orderBy('timestamp', 'desc').limit(10)
+            .onSnapshot(snapshot => {
+                const list = document.getElementById('notif-list');
+                if (snapshot.empty) return;
+                list.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const n = doc.data();
+                    list.innerHTML += `
+                    <div style="padding: 8px 0; border-bottom: 1px solid #333;">
+                        <i class="fas fa-info-circle text-green"></i> ${n.message}
+                    </div>`;
+                });
+            });
+        }
+
+        // --- 4. ACTIONS (Simulated Logic) ---
+
+        // Helper to update text safely
+        function updateText(id, val) {
+            const el = document.getElementById(id);
+            if(el) el.innerText = val;
+        }
+
+        // Navigation
+        window.nav = function(viewId) {
+            document.querySelectorAll('.view').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+            // Find nav item by index/context (simplified here)
+            const map = { 'home':0, 'earn':1, 'wallet':2, 'friends':3 };
+            document.querySelectorAll('.nav-item')[map[viewId]].classList.add('active');
+        }
+
+        // Task System
+        window.doTask = async function(taskId, reward) {
+            // Check if already done (Simulation: check local storage or dedicated collection)
+            const taskKey = `task_${currentUser}_${taskId}_${new Date().toDateString()}`; // Daily key
+            if(localStorage.getItem(taskKey)) {
+                return showToast("Already claimed today!");
+            }
+
+            // Update Balance
+            const userRef = db.collection('users').doc(currentUser);
+            await userRef.update({
+                balance: firebase.firestore.FieldValue.increment(reward)
+            });
+
+            // Mark done
+            localStorage.setItem(taskKey, 'true');
+            showToast(`Received $${reward.toFixed(2)}`);
+        }
+
+        // Withdrawal
+        window.requestWithdrawal = async function() {
+            const amount = parseFloat(document.getElementById('wd-amount').value);
+            const address = document.getElementById('wd-address').value;
+            const method = document.getElementById('wd-method').value;
+
+            if(!userData.depositUnlocked) return showToast("Account Locked: Deposit $5 first");
+            if(amount < 10) return showToast("Minimum withdrawal is $10");
+            if(userData.balance < amount) return showToast("Insufficient balance");
+            if(!address) return showToast("Enter wallet/email");
+
+            const batch = db.batch();
+            const userRef = db.collection('users').doc(currentUser);
+            const wdRef = db.collection('withdrawals').doc();
+
+            // Deduct balance, add to pending
+            batch.update(userRef, {
+                balance: firebase.firestore.FieldValue.increment(-amount),
+                pendingBalance: firebase.firestore.FieldValue.increment(amount)
+            });
+
+            // Create record
+            batch.set(wdRef, {
+                userId: currentUser,
+                amount: amount,
+                method: method,
+                address: address,
+                status: 'pending',
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            await batch.commit();
+            showToast("Withdrawal Pending!");
+            document.getElementById('wd-amount').value = '';
+        }
+
+        // Transfer
+        window.transferFunds = async function() {
+            const targetId = document.getElementById('tf-id').value;
+            const amount = parseFloat(document.getElementById('tf-amount').value);
+
+            if(!userData.depositUnlocked) return showToast("Account Locked");
+            if(amount < 2) return showToast("Min transfer is $2");
+            if(userData.balance < amount) return showToast("Insufficient balance");
+            if(targetId === currentUser) return showToast("Cannot send to self");
+
+            // Verify User
+            const targetRef = db.collection('users').doc(targetId);
+            const targetDoc = await targetRef.get();
+            if(!targetDoc.exists) return showToast("User ID not found");
+
+            // Atomic Transfer
+            const batch = db.batch();
+            const senderRef = db.collection('users').doc(currentUser);
+
+            batch.update(senderRef, { balance: firebase.firestore.FieldValue.increment(-amount) });
+            batch.update(targetRef, { balance: firebase.firestore.FieldValue.increment(amount) });
+            
+            // Notify Receiver
+            const notifRef = db.collection('notifications').doc();
+            batch.set(notifRef, {
+                userId: targetId,
+                message: `You received $${amount} from ${userData.username}`,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            await batch.commit();
+            showToast("Transfer Successful!");
+        }
+
+        // Deposit Simulation (For Demo)
+        window.openDepositModal = async function() {
+            if(confirm("Simulate a $5 Deposit via Bybit?")) {
+                await db.collection('users').doc(currentUser).update({
+                    depositUnlocked: true,
+                    balance: firebase.firestore.FieldValue.increment(5.00)
+                });
+                showToast("Deposit Confirmed! Unlocked.");
+            }
+        }
+
+        window.copyRef = function() {
+            const txt = document.getElementById('ref-link').innerText;
+            navigator.clipboard.writeText(txt).then(() => showToast("Link Copied!"));
+        }
+
+        window.showToast = function(msg) {
+            const t = document.getElementById("toast");
+            t.innerText = msg;
+            t.className = "show";
+            setTimeout(() => { t.className = t.className.replace("show", ""); }, 3000);
+        }
+
+    </script>
+</body>
+</html>
