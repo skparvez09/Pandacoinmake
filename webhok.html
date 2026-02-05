@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SojaAI — Self-Learning Sales Training (Rasel)</title>
+  <style>
+    :root{
+      --bg:#070A12;
+      --card:rgba(255,255,255,.06);
+      --card2:rgba(255,255,255,.08);
+      --stroke:rgba(255,255,255,.12);
+      --text:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.70);
+      --muted2:rgba(255,255,255,.55);
+      --accent:#00E5FF;
+      --accent2:#6CF3FF;
+      --danger:#FF4D6D;
+      --ok:#37D67A;
+      --shadow: 0 18px 60px rgba(0,0,0,.55);
+      --radius:18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background:
+        radial-gradient(900px 520px at 20% 10%, rgba(0,229,255,.15), transparent 60%),
+        radial-gradient(820px 460px at 80% 18%, rgba(108,243,255,.10), transparent 55%),
+        radial-gradient(900px 640px at 50% 92%, rgba(255,77,109,.08), transparent 60%),
+        linear-gradient(180deg, #060815 0%, #05060D 100%);
+      overflow:hidden;
+    }
+    /* Topbar */
+    .topbar{
+      position:fixed; inset:16px 16px auto 16px;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 14px;
+      background:rgba(255,255,255,.04);
+      border:1px solid var(--stroke);
+      border-radius:999px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.35);
+      z-index:10;
+      gap:12px;
+    }
+    .brand{display:flex; align-items:center; gap:10px; min-width:0}
+    .logo{
+      width:34px;height:34px;border-radius:12px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(0,229,255,.85), rgba(0,229,255,.10) 55%, transparent 60%),
+        linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.02));
+      border:1px solid rgba(0,229,255,.35);
+      box-shadow: 0 10px 26px rgba(0,229,255,.10);
+    }
+    .brand h1{font-size:14px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .brand p{margin:0;font-size:12px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .pill{
+      padding:6px 10px;border-radius:999px;
+      border:1px solid var(--stroke);
+      background:rgba(255,255,255,.04);
+      font-size:12px;color:var(--muted);
+      font-family:var(--mono);
+      white-space:nowrap;
+    }
+    .progress{display:flex;align-items:center;gap:10px;min-width:170px}
+    .bar{height:8px;flex:1;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid rgba(255,255,255,.10)}
+    .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),rgba(108,243,255,.9));border-radius:999px;transition:width .25s ease;box-shadow:0 8px 18px rgba(0,229,255,.18)}
+    .count{font-size:12px;color:var(--muted);font-family:var(--mono);min-width:70px;text-align:right}
+
+    /* Deck */
+    .deck{height:100%;padding:86px 16px 16px;display:flex;align-items:center;justify-content:center}
+    .slide{
+      width:min(1120px,100%);
+      height:min(680px,calc(100vh - 120px));
+      border-radius:var(--radius);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow:var(--shadow);
+      padding:26px 26px 22px;
+      display:none;
+      position:relative;
+      overflow:hidden;
+    }
+    .slide.active{display:block}
+    .grid{display:grid;grid-template-columns:1.22fr .78fr;gap:16px;height:100%}
+    .right{
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:16px;
+      padding:14px;
+      overflow:auto;
+    }
+
+    .tag{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:6px 10px;border-radius:999px;
+      border:1px solid rgba(0,229,255,.30);
+      background:rgba(0,229,255,.08);
+      font-size:12px;font-family:var(--mono);
+      color:rgba(240,255,255,.95);
+    }
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(0,229,255,.15)}
+    h2{margin:12px 0 10px;font-size:30px;letter-spacing:.2px}
+    h3{margin:14px 0 8px;font-size:15px;color:rgba(255,255,255,.86)}
+    p{margin:0 0 12px;color:var(--muted);line-height:1.55;font-size:14px}
+    ul{margin:0;padding-left:18px;color:var(--muted);line-height:1.55;font-size:14px}
+    li{margin:6px 0}
+    b{color:rgba(255,255,255,.92)}
+
+    .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+    .card{background:var(--card);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:12px}
+    .card b{display:block;margin-bottom:6px;font-size:13px}
+    .callout{
+      border-radius:14px;padding:12px;
+      background:rgba(255,255,255,.05);
+      border:1px dashed rgba(255,255,255,.20);
+      margin:12px 0;
+    }
+    .quote{
+      font-family:var(--mono);
+      font-size:13px;line-height:1.55;
+      color:rgba(240,255,255,.92);
+      background:rgba(0,229,255,.08);
+      border:1px solid rgba(0,229,255,.25);
+      border-radius:14px;
+      padding:12px;
+      margin:10px 0;
+      white-space:pre-wrap;
+    }
+    .badge-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+    .badge{
+      font-family:var(--mono);
+      font-size:12px;
+      padding:6px 10px;border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.05);
+      color:var(--muted);
+    }
+    .badge.ok{border-color:rgba(55,214,122,.35);background:rgba(55,214,122,.08);color:rgba(220,255,236,.92)}
+    .badge.no{border-color:rgba(255,77,109,.35);background:rgba(255,77,109,.08);color:rgba(255,230,235,.92)}
+
+    .footer{
+      position:absolute; inset:auto 18px 14px 18px;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      color:var(--muted2);font-size:12px;
+    }
+    .btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    button{
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.05);
+      color:rgba(255,255,255,.86);
+      padding:8px 10px;border-radius:12px;
+      cursor:pointer;font-size:12px;
+      transition:transform .08s ease, background .15s ease, border-color .15s ease;
+    }
+    button:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22)}
+    button:active{transform:translateY(1px)}
+    .ghost{opacity:.7}
+    .primary{border-color:rgba(0,229,255,.28); background:rgba(0,229,255,.10)}
+    .danger{border-color:rgba(255,77,109,.35); background:rgba(255,77,109,.10)}
+    .ok{border-color:rgba(55,214,122,.35); background:rgba(55,214,122,.10)}
+
+    /* Quiz */
+    .qbox{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:12px;margin-top:10px}
+    .qrow{display:grid;gap:10px;margin-top:10px}
+    .opt{
+      display:flex;align-items:flex-start;gap:10px;
+      padding:10px;border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.04);
+      cursor:pointer;
+      transition:.12s ease;
+      user-select:none;
+    }
+    .opt:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18)}
+    .opt input{margin-top:2px}
+    .result{margin-top:10px;font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.82)}
+    .result.good{color:rgba(220,255,236,.92)}
+    .result.bad{color:rgba(255,230,235,.92)}
+    .hr{height:1px;background:rgba(255,255,255,.10);margin:12px 0}
+
+    /* Checklist */
+    .check{
+      display:flex;align-items:flex-start;gap:10px;
+      padding:10px;border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.04);
+      margin:8px 0;
+    }
+    .check input{margin-top:2px}
+    .small{font-size:12px;color:var(--muted2)}
+    .big{font-size:36px;letter-spacing:.5px;margin:10px 0}
+    @media (max-width:920px){
+      .grid{grid-template-columns:1fr}
+      h2{font-size:26px}
+      .progress{min-width:120px}
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div style="min-width:0">
+        <h1>SojaAI — Rasel Self-Learning Training</h1>
+        <p>Open, read, practice, pass the test → then start calls (no trainer needed)</p>
+      </div>
+    </div>
+
+    <div class="progress">
+      <div class="bar"><i id="prog"></i></div>
+      <div class="count"><span id="idx">1</span>/<span id="total">1</span></div>
+    </div>
+
+    <div class="tools">
+      <span class="pill">← / →</span>
+      <span class="pill">Space</span>
+      <span class="pill">Esc</span>
+      <button class="primary" onclick="toggleOverlay(true)">Overview</button>
+    </div>
+  </div>
+
+  <div class="deck">
+
+    <!-- SLIDE 1 -->
+    <section class="slide active">
+      <div class="grid">
+        <div>
+          <span class="tag"><span class="dot"></span> Welcome</span>
+          <h2>Rasel — follow this training and you will be ready</h2>
+          <p>
+            This presentation is designed for <b>self-learning</b>. You do not need a trainer.
+            Just follow each slide, practice the lines, and complete the quizzes.
+          </p>
+
+          <div class="cards">
+            <div class="card">
+              <b>Your job</b>
+              <ul>
+                <li>Book + handle intro calls (15–20 min)</li>
+                <li>Ask discovery questions</li>
+                <li>Explain the offer simply</li>
+                <li>If client is ready → handoff to owner</li>
+              </ul>
+            </div>
+            <div class="card">
+              <b>What you NEVER do</b>
+              <ul>
+                <li>Never send payment links</li>
+                <li>Never access backend systems</li>
+                <li>Never talk technical (no n8n/Airtable)</li>
+                <li>Never overpromise</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="callout">
+            <b>Goal:</b> If you can explain this in simple words and follow the call flow,
+            you can close calls — even without sales experience.
+          </div>
+
+          <div class="badge-row">
+            <span class="badge ok">Simple language</span>
+            <span class="badge ok">Repeatable script</span>
+            <span class="badge ok">Handoff system</span>
+            <span class="badge no">No payment handling</span>
+          </div>
+        </div>
+
+        <div class="right">
+          <h3>How to use this training</h3>
+          <ul>
+            <li>Read slide → practice aloud → finish quiz</li>
+            <li>Do 30–45 minutes/day for 7 days</li>
+            <li>Record voice notes of yourself (optional)</li>
+          </ul>
+
+          <div class="hr"></div>
+
+          <h3>Expected outcome</h3>
+          <ul>
+            <li>Confident intro call</li>
+            <li>Basic objection handling</li>
+            <li>Clean handoff to owner for payment</li>
+          </ul>
+
+          <div class="hr"></div>
+
+          <p class="small">
+            Navigation: Arrow keys or Space to move. Press “Overview” anytime.
+          </p>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="small">Start here → go slide by slide</div>
+        <div class="btns">
+          <button class="ghost" onclick="prev()">Prev</button>
+          <button class="primary" onclick="next()">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2 -->
+    <section class="slide">
+      <div class="grid">
+        <div>
+          <span class="tag"><span class="dot"></span> The Offer</span>
+          <h2>Memorize the 1-sentence pitch</h2>
+          <p>Say it 10 times. If you can say this confidently, you can sell.</p>
+
+          <div class="quote">
+“SojaAI helps local service businesses reply instantly to website inquiries
+so they stop missing bookings and convert more leads — automatically.”
+          </div>
+
+          <h3>What to say (simple outcomes)</h3>
+          <ul>
+            <li>Instant replies to website inquiries</li>
+            <li>Booking requests get priority alerts</li>
+            <li>All leads stay organized in one dashboard</li>
+          </ul>
+
+          <h3>What NOT to say (avoid tech words)</h3>
+          <div class="badge-row">
+            <span class="badge no">n8n</span>
+            <span class="badge no">Airtable</span>
+            <span class="badge no">webhooks</span>
+            <span class="badge no">OpenAI API</span>
+          </div>
+
+          <div class="callout">
+            <b>Rule:</b> If you talk about results, the client understands. If you talk about tech, the client gets confused.
+          </div>
+        </div>
+
+        <div class="right">
+          <h3>Plans (memorize)</h3>
+          <div class="card">
+            <b>Basic</b>
+            <ul>
+              <li>$1,500 setup</li>
+              <li>$149/month</li>
+              <li>Best for: stop missing leads</li>
+            </ul>
+          </div>
+
+          <div class="card" style="margin-top:12px;">
+            <b>Pro</b>
+            <ul>
+              <li>$2,500 setup</li>
+              <li>$349/month</li>
+              <li>Best for: scale without hiring</li>
+            </ul>
+          </div>
+
+          <div class="hr"></div>
+
+          <h3>Handoff line (memorize)</h3>
+          <div class="quote">
+“Great — I’ll have our operations team email you from info@sojaai.com
+with the official setup link and next steps today.”
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="small">Practice the pitch aloud now</div>
+        <div class="btns">
+          <button onclick="prev()">Prev</button>
+          <button class="primary" onclick="next()">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3 -->
+    <section class="slide">
+      <div class="grid">
+        <div>
+          <span class="tag"><span class="dot"></span> Call Flow</span>
+          <h2>20-minute intro call (same structure every time)</h2>
+          <p>Follow this flow. If you get lost, return to the structure.</p>
+
+          <div class="cards">
+            <div class="card">
+              <b>0:00–2:00 Opening</b>
+              <ul>
+                <li>Thank them for booking</li>
+                <li>Set the agenda</li>
+                <li>Ask permission for questions</li>
+              </ul>
+            </div>
+            <div class="card">
+              <b>2:00–8:00 Discovery</b>
+              <ul>
+                <li>How leads come in</li>
+                <li>How fast they reply</li>
+                <li>What gets missed</li>
+              </ul>
+            </div>
+            <div class="card">
+              <b>8:00–13:00 Explain solution</b>
+              <ul>
+                <li>Instant reply</li>
+                <li>Booking = hot alert</li>
+                <li>Dashboard for clarity</li>
+              </ul>
+            </div>
+            <div class="card">
+              <b>13:00–20:00 Price + next step</b>
+              <ul>
+                <li>Recommend Basic/Pro</li>
+                <li>Handle 1 objection</li>
+                <li>Handoff to owner</li>
+              </ul>
+            </div>
+          </div>
+
+          <h3>Opening line (read exactly)</h3>
+          <div class="quote">
+“Hi John, thanks for booking.
+This will be quick and focused.
+I’ll ask a few questions to see if this is a good fit — is that okay?”
+          </div>
+        </div>
+
+        <div class="right">
+          <h3>Discovery questions (pick 5)</h3>
+          <ul>
+            <li>How do website inquiries come in today?</li>
+            <li>How fast do you usually reply?</li>
+            <li>Do you ever miss messages while busy?</li>
+            <li>How many inquiries do you get weekly?</li>
+            <li>What happens when someone asks for pricing?</li>
+          </ul>
+
+          <div class="hr"></div>
+
+          <h3>Transition line</h3>
+          <div class="quote">
+“Based on what you shared, faster replies would help you win more jobs.
+Let me explain a simple system — then you can tell me if it makes sense.”
+          </div>
+
+          <div class="callout">
+            <b>Rule:</b> Keep it calm. Ask questions. Do not rush.
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="small">Now you know the structure — don’t change it</div>
+        <div class="btns">
+          <button onclick="prev()">Prev</button>
+          <button class="primary" onclick="next()">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4 -->
+    <section class="slide">
+      <div class="grid">
+        <div>
+          <span class="tag"><span class="dot"></span> Objections</span>
+          <h2>Only 3 objections you must master</h2>
+          <p>Do not learn 20 responses. Master these 3 first.</p>
+
+          <h3>1) “It’s expensive”</h3>
+          <div class="quote">
+“I understand.
+Most owners felt that at first.
+But missed bookings cost more than the system.
+If it saves time and wins more jobs, it pays for itself.”
+          </div>
+
+          <h3>2) “I need to think about it”</h3>
+          <div class="quote">
+“Totally fair.
+What part do you need to think about — the result, or the investment?”
+          </div>
+
+          <h3>3) “Send me details”</h3>
+          <div class="quote">
+“Sure.
+Before I send it, are you mainly interested in Basic or Pro?
+I’ll have our team email the official proposal and next steps.”
+          </div>
+
+          <div class="callout">
+            <b>Rule:</b> Handle one objection, then ask for next step. Don’t debate.
+          </div>
+        </div>
+
+        <div class="right">
+          <h3>Price line (memorize)</h3>
+          <div class="quote">
+“Basic is $1,500 setup + $149/month.
+Pro is $2,500 setup + $349/month.
+Based on what you shared, I recommend: (Basic/Pro).”
+          </div>
+
+          <h3>Close line (soft)</h3>
+          <div class="quote">
+“If this makes sense, I can have our operations team send the official setup link today.
+Would you like us to proceed?”
+          </div>
+
+          <div class="hr"></div>
+
+          <h3>Payment rule</h3>
+          <div class="callout">
+            If client asks for payment link:
+            <div class="quote" style="margin:10px 0 0">
+“For security, payments are handled only through our official business email.
+I’ll have our team send the secure link today.”
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="small">If you master these 3, you’re ahead of most beginners</div>
+        <div class="btns">
+          <button onclick="prev()">Prev</button>
+          <button class="primary" onclick="next()">Next</button>
+        </div>
+      </div>
+    </section>
+
+      <!-- SLIDE 5 (QUIZ 1) -->
+    <section class="slide">
+      <div class="grid">
+        <div>
+          <span class="tag"><span class="dot"></span> Quiz 1</span>
+          <h2>Quick quiz: What should you say?</h2>
+          <p>Pick the best answer. You must pass to continue.</p>
+
+          <div class="qbox">
+            <b>Q1:</b> Client says: “Can you send me the payment link right now?”
+            <div class="qrow" data-q="q1">
+              <label class="opt"><input type="radio" name="q1" value="a"> Sure, here is my PayPal link. Pay now.</label>
+              <label class="opt"><input type="radio" name="q1" value="b"> For security, payments are handled by our operations team via info@sojaai.com. I’ll have them email you the secure link today.</label>
+              <label class="opt"><input type="radio" name="q1" value="c"> I don’t know. Let’s talk later.</label>
+            </div>
+            <div class="result" id="r1"></div>
+          </div>
+
+          <div class="qbox">
+            <b>Q2:</b> Which words should you avoid?
+            <div class="qrow" data-q="q2">
+              <label class="opt"><input type="radio" name="q2" value="a"> “Instant replies” and “Hot booking alerts”</label>
+              <label class="opt"><input type="radio" name="q2" value="b"> “n8n, Airtable, webhook, API”</label>
+              <label class="opt"><input type="radio" name="q2" value="c"> “No missed leads”</label>
+            </div>
+            <div class="result" id="r2"></div>
+          </div>
+
+          <div class="btns" style="margin-top:10px">
+            <button class="primary" onclick="gradeQuiz1()">Check Answers</button>
+          </div>
+
+          <div class="callout" id="quiz1hint" style="display:none">
+            <b>Next step:</b> If you passed, go to the next slide.
+          </div>
+        </div>
+
+        <div class="right">
+          <h3>Passing rule</h3>
+          <ul>
+            <li>You must answer both questions correctly</li>
+            <li>Otherwise, re-read slides 2–4 and try again</li>
+          </ul>
+
+          <div class="hr"></div>
+
+          <h3>Memory drill (2 minutes)</h3>
+          <ul>
+            <li>Say the 1-sentence pitch 10×</li>
+            <li>Say the handoff line 10×</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="small">No stress — retry until you pass</div>
+        <div class="btns">
+          <button onclick="prev()">Prev</button>
+          <button class="primary" onclick="next()">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6 (PRACTICE TIMER) -->
+    <section class="slide">
+      <div class="grid">
+        <div>
+          <span class="tag"><span class="dot"></span> Practice</span>
+          <h2>10-minute daily practice timer</h2>
+          <p>Press Start. Practice the lines aloud. Do this daily for 7 days.</p>
+
+          <div class="cards">
+            <div class="card">
+              <b>Line 1 (pitch)</b>
+              <div class="quote" style="margin:10px 0 0">SojaAI helps local service businesses reply instantly to website inquiries…</div>
+            </div>
+            <div class="card">
+              <b>Line 2 (opening)</b>
+              <div class="quote" style="margin:10px 0 0">This will be quick and focused… is it okay if I ask a few questions?</div>
+            </div>
+            <div class="card">
+              <b>Line 3 (price)</b>
+              <div class="quote" style="margin:10px 0 0">Basic is $1,500 setup + $149/month…</div>
+            </div>
+            <div class="card">
+              <b>Line 4 (handoff)</b>
+              <div class="quote" style="margin:10px 0 0">I’ll have our team email you from info@sojaai.com…</div>
+            </div>
+          </div>
+
+          <div class="callout">
+            <div class="big" id="timer">10:00</div>
+            <div class="btns">
+              <button class="primary" onclick="startTimer()">Start</button>
+              <button onclick="pauseTimer()">Pause</button>
+              <button class="danger" onclick="resetTimer()">Reset</button>
+            </div>
+            <p class="small" style="margin-top:10px">
+              Tip: record a voice note after practice and listen once.
+            </p>
+          </div>
+        </div>
+
+        <div class="right">
+          <h3>Daily routine (simple)</h3>
+          <ul>
+            <li>10 minutes practice (timer)</li>
+            <li>20–40 outreach messages</li>
+            <li>1–2 calls booked</li>
+            <li>Send summary to owner</li>
+          </ul>
+
+          <div class="hr"></div>
+
+          <h3>Daily summary template (copy)</h3>
+          <div class="quote">
+Today:
+Outreach: __
+Replies: __
+Calls booked: __
+Notes: __
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="small">Do the timer now before you move on</div>
+        <div class="btns">
+          <button onclick="prev()">Prev</button>
+          <button class="primary" onclick="next()">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7 (CHECKLIST) -->
+    <section class="slide">
+      <div class="grid">
+        <div>
+          <span class="tag"><span class="dot"></span> Checklist</span>
+          <h2>Ready checklist (must complete)</h2>
+          <p>If you can tick all items, you’re ready to handle calls.</p>
+
+          <div class="check"><input type="checkbox" class="ck"><div><b>I can say the 1-sentence pitch confidently.</b><div class="small">No tech words.</div></div></div>
+          <div class="check"><input type="checkbox" class="ck"><div><b>I can follow the 20-minute call structure.</b><div class="small">Opening → discovery → solution → price → handoff.</div></div></div>
+          <div class="check"><input type="checkbox" class="ck"><div><b>I can handle the 3 objections without debating.</b><div class="small">Expensive / Think / Send details.</div></div></div>
+          <div class="check"><input type="checkbox" class="ck"><div><b>I will never send payment links.</b><div class="small">Owner sends official link from info@sojaai.com.</div></div></div>
+          <div class="check"><input type="checkbox" class="ck"><div><b>I can do daily outreach + daily summary.</b><div class="small">Consistency matters more than talent.</div></div></div>
+
+          <div class="callout">
+            <b>Status:</b> <span id="readyStatus" class="small">Not checked yet.</span>
+            <div class="btns" style="margin-top:10px">
+              <button class="primary" onclick="checkReady()">Check if Ready</button>
+              <button onclick="resetChecks()">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="right">
+          <h3>Rules to protect trust</h3>
+          <ul>
+            <li>Never exaggerate results</li>
+            <li>Never mention backend tools</li>
+            <li>Never ask for payment on call</li>
+            <li>Always handoff cleanly</li>
+          </ul>
+
+          <div class="hr"></div>
+
+          <h3>If client asks hard questions</h3>
+          <div class="quote">
+“That’s a great question.
+I’ll note it and have our operations team confirm the details with you.”
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="small">Check your readiness before final test</div>
+        <div class="btns">
+          <button onclick="prev()">Prev</button>
+          <button class="primary" onclick="next()">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8 (FINAL TEST + CERTIFICATE) -->
+    <section class="slide">
+      <div class="grid">
+        <div>
+          <span class="tag"><span class="dot"></span> Final Test</span>
+          <h2>Final test: pass → you’re cleared for calls</h2>
+          <p>Answer correctly. If you pass, show the “PASS” screen to the owner.</p>
+
+          <div class="qbox">
+            <b>Q1:</b> Client says: “Do you build this with AI tools? How exactly?”
+            <div class="qrow" data-q="q3">
+              <label class="opt"><input type="radio" name="q3" value="a"> Let me explain the full technical stack: n8n + Airtable + webhooks…</label>
+              <label class="opt"><input type="radio" name="q3" value="b"> It’s a simple lead-response system that replies instantly and prioritizes bookings. The technical details are handled by our team — results are what matter.</label>
+              <label class="opt"><input type="radio" name="q3" value="c"> I’m not sure.</label>
+            </div>
+            <div class="result" id="r3"></div>
+          </div>
+
+          <div class="qbox">
+            <b>Q2:</b> When do you earn monthly commission?
+            <div class="qrow" data-q="q4">
+              <label class="opt"><input type="radio" name="q4" value="a"> Always, even if client cancels.</label>
+              <label class="opt"><input type="radio" name="q4" value="b"> Only while the client is active and paying monthly.</label>
+              <label class="opt"><input type="radio" name="q4" value="c"> Before payment.</label>
+            </div>
+            <div class="result" id="r4"></div>
+          </div>
+
+          <div class="btns" style="margin-top:10px">
+            <button class="primary" onclick="gradeFinal()">Check Final</button>
+          </div>
+
+          <div class="callout" id="cert" style="display:none">
+            <div class="big" style="margin:6px 0">✅ PASS</div>
+            <p><b>You are cleared to handle intro calls.</b></p>
+            <p class="small">
+              Show this screen to the owner. Then start booking calls.
+            </p>
+          </div>
+
+          <div class="callout" id="fail" style="display:none">
+            <div class="big" style="margin:6px 0">❌ NOT YET</div>
+            <p><b>Review slides 2–4 and retry the final test.</b></p>
+          </div>
+        </div>
+
+        <div class="right">
+          <h3>Start tomorrow plan</h3>
+          <ul>
+            <li>Send 30 outreach messages</li>
+            <li>Book 1 intro call</li>
+            <li>Use the call structure</li>
+            <li>Handoff if “Yes”</li>
+          </ul>
+
+          <div class="hr"></div>
+
+          <h3>Handoff form (owner only)</h3>
+          <p class="small">Owner can create a simple form to collect:</p>
+          <ul>
+            <li>Client name + business</li>
+            <li>Email + website</li>
+            <li>Chosen plan (Basic/Pro)</li>
+            <li>Notes</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="small">If you pass, you’re ready</div>
+        <div class="btns">
+          <button onclick="prev()">Prev</button>
+          <button class="primary" onclick="next()">Restart</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Overlay -->
+    <div id="overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter: blur(10px); z-index:50;">
+      <div style="max-width:920px; margin:90px auto; padding:18px;">
+        <div style="background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:18px; box-shadow: var(--shadow); overflow:hidden;">
+          <div style="padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,.10);">
+            <div>
+              <div style="font-family:var(--mono); font-size:12px; color:var(--muted2);">Overview</div>
+              <div style="font-size:14px; color:rgba(255,255,255,.88);">Jump to any module</div>
+            </div>
+            <button onclick="toggleOverlay(false)">Close</button>
+          </div>
+          <div id="list" style="padding:10px; display:grid; gap:10px;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    const prog = document.getElementById("prog");
+    const idxEl = document.getElementById("idx");
+    const totalEl = document.getElementById("total");
+    const overlay = document.getElementById("overlay");
+    const list = document.getElementById("list");
+
+    let current = 0;
+
+    function updateUI(){
+      slides.forEach((s,i)=> s.classList.toggle("active", i===current));
+      totalEl.textContent = slides.length;
+      idxEl.textContent = current + 1;
+      const pct = ((current+1) / slides.length) * 100;
+      prog.style.width = pct + "%";
+    }
+    function next(){
+      current = (current + 1) % slides.length;
+      updateUI();
+    }
+    function prev(){
+      current = (current - 1 + slides.length) % slides.length;
+      updateUI();
+    }
+    function goTo(i){
+      current = Math.max(0, Math.min(slides.length - 1, i));
+      updateUI();
+      toggleOverlay(false);
+    }
+    function toggleOverlay(force){
+      const show = typeof force === "boolean" ? force : overlay.style.display === "none";
+      overlay.style.display = show ? "block" : "none";
+    }
+    function buildList(){
+      list.innerHTML = "";
+      slides.forEach((slide, i) => {
+        const titleEl = slide.querySelector("h2");
+        const tagEl = slide.querySelector(".tag");
+        const title = titleEl ? titleEl.textContent.trim() : `Slide ${i+1}`;
+        const tag = tagEl ? tagEl.textContent.trim() : "Slide";
+        const item = document.createElement("button");
+        item.style.textAlign = "left";
+        item.style.width = "100%";
+        item.style.padding = "12px";
+        item.style.borderRadius = "14px";
+        item.style.background = "rgba(255,255,255,.05)";
+        item.style.border = "1px solid rgba(255,255,255,.12)";
+        item.innerHTML = `
+          <div style="font-family:var(--mono); font-size:12px; color:rgba(255,255,255,.65); margin-bottom:6px;">${i+1}. ${tag}</div>
+          <div style="font-size:14px; color:rgba(255,255,255,.88);">${title}</div>
+        `;
+        item.addEventListener("click", ()=>goTo(i));
+        list.appendChild(item);
+      });
+    }
+
+    // Quiz grading
+    function gradeQuiz1(){
+      const a1 = document.querySelector('input[name="q1"]:checked')?.value;
+      const a2 = document.querySelector('input[name="q2"]:checked')?.value;
+      const r1 = document.getElementById("r1");
+      const r2 = document.getElementById("r2");
+      const hint = document.getElementById("quiz1hint");
+
+      let ok = true;
+
+      if(a1 === "b"){ r1.textContent = "✅ Correct. Always handoff payment to operations team."; r1.className = "result good"; }
+      else { r1.textContent = "❌ Wrong. You never send payment links. Choose the security handoff answer."; r1.className = "result bad"; ok = false; }
+
+      if(a2 === "b"){ r2.textContent = "✅ Correct. Avoid tech words."; r2.className = "result good"; }
+      else { r2.textContent = "❌ Wrong. You must avoid n8n/Airtable/webhooks/API."; r2.className = "result bad"; ok = false; }
+
+      hint.style.display = ok ? "block" : "none";
+      hint.className = "callout " + (ok ? "ok" : "danger");
+    }
+
+    // Checklist readiness
+    function checkReady(){
+      const checks = Array.from(document.querySelectorAll(".ck"));
+      const all = checks.every(c => c.checked);
+      const st = document.getElementById("readyStatus");
+      st.textContent = all ? "✅ READY — you can start calls." : "❌ Not ready — complete all items.";
+      st.style.color = all ? "rgba(220,255,236,.92)" : "rgba(255,230,235,.92)";
+    }
+    function resetChecks(){
+      document.querySelectorAll(".ck").forEach(c => c.checked = false);
+      const st = document.getElementById("readyStatus");
+      st.textContent = "Not checked yet.";
+      st.style.color = "var(--muted2)";
+    }
+
+    // Final test
+    function gradeFinal(){
+      const a3 = document.querySelector('input[name="q3"]:checked')?.value;
+      const a4 = document.querySelector('input[name="q4"]:checked')?.value;
+      const r3 = document.getElementById("r3");
+      const r4 = document.getElementById("r4");
+      const cert = document.getElementById("cert");
+      const fail = document.getElementById("fail");
+
+      let ok = true;
+
+      if(a3 === "b"){ r3.textContent = "✅ Correct. Talk outcomes, not technical stack."; r3.className = "result good"; }
+      else { r3.textContent = "❌ Wrong. Never explain the stack. Keep it outcome-focused."; r3.className = "result bad"; ok = false; }
+
+      if(a4 === "b"){ r4.textContent = "✅ Correct. Monthly only while active & paying."; r4.className = "result good"; }
+      else { r4.textContent = "❌ Wrong. Monthly commission is only while client stays active & paying."; r4.className = "result bad"; ok = false; }
+
+      cert.style.display = ok ? "block" : "none";
+      fail.style.display = ok ? "none" : "block";
+    }
+
+    // Timer (10 minutes)
+    let t = 600, timerId = null;
+    function renderTimer(){
+      const m = String(Math.floor(t/60)).padStart(2,'0');
+      const s = String(t%60).padStart(2,'0');
+      document.getElementById("timer").textContent = `${m}:${s}`;
+    }
+    function startTimer(){
+      if(timerId) return;
+      timerId = setInterval(()=>{
+        if(t>0){ t--; renderTimer(); }
+        else { pauseTimer(); }
+      }, 1000);
+    }
+    function pauseTimer(){
+      if(timerId){ clearInterval(timerId); timerId = null; }
+    }
+    function resetTimer(){
+      pauseTimer();
+      t = 600;
+      renderTimer();
+    }
+
+    // Keyboard
+    window.addEventListener("keydown", (e)=>{
+      if(e.key==="ArrowRight" || e.key===" "){
+        e.preventDefault();
+        if(overlay.style.display==="block") return;
+        next();
+      }
+      if(e.key==="ArrowLeft"){
+        e.preventDefault();
+        if(overlay.style.display==="block") return;
+        prev();
+      }
+      if(e.key==="Escape"){
+        e.preventDefault();
+        toggleOverlay();
+      }
+    });
+
+    // Init
+    function init(){
+      totalEl.textContent = slides.length;
+      buildList();
+      updateUI();
+      renderTimer();
+    }
+    init();
+  </script>
+</body>
+</html>
